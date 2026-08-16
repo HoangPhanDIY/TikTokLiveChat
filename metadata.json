@@ -1,0 +1,6 @@
+{
+  "name": "TikTok Live Chat & TTS Reader",
+  "description": "Kết nối TikTok Live theo ID, hiển thị bình luận thời gian thực trên màn hình và đọc giọng chị Google tự động.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
