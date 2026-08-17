@@ -19,7 +19,9 @@ function cleanTikTokUniqueId(raw: string): string {
       clean = match[1];
     } else {
       try {
-        const parsed = new URL(clean.startsWith("http") ? clean : `https://${clean}`);
+        const parsed = new URL(
+          clean.startsWith("http") ? clean : `https://${clean}`,
+        );
         const parts = parsed.pathname.split("/").filter(Boolean);
         const userPart = parts.find((p) => p.startsWith("@")) || parts[0];
         if (userPart) clean = userPart.replace(/^@/, "");
@@ -147,9 +149,16 @@ function generateFallbackSvg(name: string): string {
 // Deep recursive scanner to find avatar URLs in TikTok Protobuf / JSON objects
 function findAvatarDeep(obj: any, depth = 0): string {
   if (!obj || depth > 5) return "";
-  
+
   if (typeof obj === "string") {
-    if (obj.startsWith("http") && (obj.includes("tiktokcdn.com") || obj.includes("byteoversea.com") || obj.includes("ibytedtos.com") || obj.includes("tos-") || obj.includes("avt-"))) {
+    if (
+      obj.startsWith("http") &&
+      (obj.includes("tiktokcdn.com") ||
+        obj.includes("byteoversea.com") ||
+        obj.includes("ibytedtos.com") ||
+        obj.includes("tos-") ||
+        obj.includes("avt-"))
+    ) {
       return obj;
     }
     if (obj.startsWith("tos-") || obj.startsWith("musically-maliva-obj/")) {
@@ -169,11 +178,20 @@ function findAvatarDeep(obj: any, depth = 0): string {
   if (typeof obj === "object") {
     // Check known high-priority avatar properties first
     const directKeys = [
-      "profilePictureUrl", "profile_picture_url",
-      "avatarThumb", "avatarMedium", "avatarLarge",
-      "avatar_thumb", "avatar_medium", "avatar_large",
-      "avatar_100x100", "avatar_300x300",
-      "urlList", "url_list", "profilePictureUrls", "profile_picture_urls"
+      "profilePictureUrl",
+      "profile_picture_url",
+      "avatarThumb",
+      "avatarMedium",
+      "avatarLarge",
+      "avatar_thumb",
+      "avatar_medium",
+      "avatar_large",
+      "avatar_100x100",
+      "avatar_300x300",
+      "urlList",
+      "url_list",
+      "profilePictureUrls",
+      "profile_picture_urls",
     ];
 
     for (const key of directKeys) {
@@ -183,12 +201,22 @@ function findAvatarDeep(obj: any, depth = 0): string {
       }
     }
 
-    if (typeof obj.uri === "string" && (obj.uri.startsWith("tos-") || obj.uri.startsWith("musically-"))) {
+    if (
+      typeof obj.uri === "string" &&
+      (obj.uri.startsWith("tos-") || obj.uri.startsWith("musically-"))
+    ) {
       return `https://p16-sign-va.tiktokcdn.com/${obj.uri}~c5_100x100.jpeg`;
     }
 
     // Check nested objects
-    const subObjs = [obj.user, obj.userDetails, obj.author, obj.senderUser, obj.extra?.author, obj.user_details];
+    const subObjs = [
+      obj.user,
+      obj.userDetails,
+      obj.author,
+      obj.senderUser,
+      obj.extra?.author,
+      obj.user_details,
+    ];
     for (const sub of subObjs) {
       if (sub) {
         const found = findAvatarDeep(sub, depth + 1);
@@ -216,7 +244,8 @@ async function scrapeTikTokUserAvatarUrl(uniqueId: string): Promise<string> {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "vi,en-US;q=0.9,en;q=0.8",
         Referer: "https://www.tiktok.com/",
       },
@@ -228,23 +257,34 @@ async function scrapeTikTokUserAvatarUrl(uniqueId: string): Promise<string> {
     const html = await res.text();
 
     // 1. Try og:image meta tag
-    const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
-                    html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+    const ogMatch =
+      html.match(
+        /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
+      ) ||
+      html.match(
+        /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i,
+      );
     if (ogMatch && ogMatch[1] && ogMatch[1].startsWith("http")) {
       return ogMatch[1].replace(/&amp;/g, "&");
     }
 
     // 2. Try JSON hydration data for avatarLarger / avatarMedium / avatarThumb
-    const avatarMatch = html.match(/"avatarLarger":"([^"]+)"/) ||
-                        html.match(/"avatarMedium":"([^"]+)"/) ||
-                        html.match(/"avatarThumb":"([^"]+)"/);
+    const avatarMatch =
+      html.match(/"avatarLarger":"([^"]+)"/) ||
+      html.match(/"avatarMedium":"([^"]+)"/) ||
+      html.match(/"avatarThumb":"([^"]+)"/);
     if (avatarMatch && avatarMatch[1]) {
-      let raw = avatarMatch[1].replace(/\\u002F/g, "/").replace(/\\u0026/g, "&").replace(/&amp;/g, "&");
+      let raw = avatarMatch[1]
+        .replace(/\\u002F/g, "/")
+        .replace(/\\u0026/g, "&")
+        .replace(/&amp;/g, "&");
       if (raw.startsWith("http")) return raw;
     }
 
     // 3. Try twitter:image
-    const twMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+    const twMatch = html.match(
+      /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
+    );
     if (twMatch && twMatch[1] && twMatch[1].startsWith("http")) {
       return twMatch[1].replace(/&amp;/g, "&");
     }
@@ -255,18 +295,79 @@ async function scrapeTikTokUserAvatarUrl(uniqueId: string): Promise<string> {
   return "";
 }
 
-function getProxiedAvatarUrl(data: any, fallbackUniqueId = "", fallbackNickname = ""): string {
+// Helper to extract reliable user nickname & uniqueId from any TikTok event payload
+function extractUserInfo(
+  data: any,
+  fallbackUniqueId = "",
+  fallbackNickname = "",
+) {
+  if (!data) {
+    return {
+      nickname: fallbackNickname || fallbackUniqueId || "Người xem",
+      uniqueId: fallbackUniqueId || "user",
+    };
+  }
+
+  const senderNick =
+    data.nickname ||
+    data.user?.nickname ||
+    data.userDetails?.nickname ||
+    data.senderUser?.nickname ||
+    data.author?.nickname ||
+    data.user?.nickName ||
+    data.nickName ||
+    data.user?.display_id ||
+    data.user?.displayId ||
+    data.display_id ||
+    data.displayId ||
+    data.uniqueId ||
+    data.user?.uniqueId ||
+    data.userDetails?.uniqueId ||
+    data.senderUser?.uniqueId ||
+    fallbackNickname ||
+    fallbackUniqueId ||
+    "Người xem";
+
+  const senderUid =
+    data.uniqueId ||
+    data.user?.uniqueId ||
+    data.userDetails?.uniqueId ||
+    data.senderUser?.uniqueId ||
+    data.author?.uniqueId ||
+    data.user?.display_id ||
+    data.user?.displayId ||
+    data.display_id ||
+    data.displayId ||
+    fallbackUniqueId ||
+    (typeof senderNick === "string" && senderNick !== "Người xem"
+      ? senderNick.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, "_")
+      : "user");
+
+  return {
+    nickname: String(senderNick).trim(),
+    uniqueId: String(senderUid).trim(),
+  };
+}
+
+function getProxiedAvatarUrl(
+  data: any,
+  fallbackUniqueId = "",
+  fallbackNickname = "",
+): string {
   const rawUrl = findAvatarDeep(data);
-  const uid = data?.uniqueId || data?.user?.uniqueId || fallbackUniqueId || "user";
-  const name = data?.nickname || data?.user?.nickname || fallbackNickname || uid;
-  
+  const { nickname, uniqueId } = extractUserInfo(
+    data,
+    fallbackUniqueId,
+    fallbackNickname,
+  );
+
   if (rawUrl && rawUrl.startsWith("http")) {
-    return `/api/avatar?url=${encodeURIComponent(rawUrl)}&uniqueId=${encodeURIComponent(uid)}&name=${encodeURIComponent(name)}`;
+    return `/api/avatar?url=${encodeURIComponent(rawUrl)}&uniqueId=${encodeURIComponent(uniqueId)}&name=${encodeURIComponent(nickname)}`;
   }
-  if (uid && uid !== "user") {
-    return `/api/avatar?uniqueId=${encodeURIComponent(uid)}&name=${encodeURIComponent(name)}`;
+  if (uniqueId && uniqueId !== "user") {
+    return `/api/avatar?uniqueId=${encodeURIComponent(uniqueId)}&name=${encodeURIComponent(nickname)}`;
   }
-  return `/api/avatar?name=${encodeURIComponent(name)}`;
+  return `/api/avatar?name=${encodeURIComponent(nickname)}`;
 }
 
 // 100% Guaranteed Avatar Endpoint: Retrieves actual TikTok profile picture or falls back gracefully
@@ -275,7 +376,11 @@ app.get(["/api/avatar", "/api/proxy-image"], async (req, res) => {
   const uniqueId = (req.query.uniqueId as string) || "";
   const name = (req.query.name as string) || uniqueId || "TikTok";
 
-  const cacheKey = targetUrl ? targetUrl : (uniqueId ? `user_${uniqueId}` : `name_${name}`);
+  const cacheKey = targetUrl
+    ? targetUrl
+    : uniqueId
+      ? `user_${uniqueId}`
+      : `name_${name}`;
 
   // 1. Check in-memory RAM cache (1-hour TTL)
   if (avatarCache.has(cacheKey)) {
@@ -288,7 +393,12 @@ app.get(["/api/avatar", "/api/proxy-image"], async (req, res) => {
   }
 
   // 2. If no direct targetUrl but uniqueId is given, attempt to scrape TikTok profile for the real avatar URL
-  if ((!targetUrl || !targetUrl.startsWith("http")) && uniqueId && uniqueId !== "user" && uniqueId !== "demo_live") {
+  if (
+    (!targetUrl || !targetUrl.startsWith("http")) &&
+    uniqueId &&
+    uniqueId !== "user" &&
+    uniqueId !== "demo_live"
+  ) {
     const scrapedUrl = await scrapeTikTokUserAvatarUrl(uniqueId);
     if (scrapedUrl) {
       targetUrl = scrapedUrl;
@@ -308,13 +418,15 @@ app.get(["/api/avatar", "/api/proxy-image"], async (req, res) => {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
           Referer: "https://www.tiktok.com/",
-          Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          Accept:
+            "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
         },
       });
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        const contentType = response.headers.get("content-type") || "image/jpeg";
+        const contentType =
+          response.headers.get("content-type") || "image/jpeg";
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
@@ -341,14 +453,18 @@ app.get(["/api/avatar", "/api/proxy-image"], async (req, res) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-      const unavatarRes = await fetch(`https://unavatar.io/tiktok/${encodeURIComponent(uniqueId)}`, {
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      const unavatarRes = await fetch(
+        `https://unavatar.io/tiktok/${encodeURIComponent(uniqueId)}`,
+        {
+          signal: controller.signal,
+          redirect: "follow",
+        },
+      );
       clearTimeout(timeoutId);
 
       if (unavatarRes.ok) {
-        const contentType = unavatarRes.headers.get("content-type") || "image/jpeg";
+        const contentType =
+          unavatarRes.headers.get("content-type") || "image/jpeg";
         const arrayBuffer = await unavatarRes.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
@@ -396,7 +512,10 @@ app.get("/api/tiktok/status", (req, res) => {
 });
 
 app.get("/api/tiktok/session", (req, res) => {
-  res.json({ savedUniqueId: activeSession.savedUniqueId, uniqueId: activeSession.uniqueId });
+  res.json({
+    savedUniqueId: activeSession.savedUniqueId,
+    uniqueId: activeSession.uniqueId,
+  });
 });
 
 app.post("/api/tiktok/session", (req, res) => {
@@ -430,8 +549,10 @@ app.post("/api/tiktok/disconnect", (req, res) => {
   activeSession.isConnected = false;
   activeSession.isSimulated = false;
   activeSession.uniqueId = "";
-  
-  broadcastEvent("disconnected", { message: "Đã ngắt kết nối với TikTok Live" });
+
+  broadcastEvent("disconnected", {
+    message: "Đã ngắt kết nối với TikTok Live",
+  });
   res.json({ success: true, message: "Disconnected" });
 });
 
@@ -439,14 +560,20 @@ app.post("/api/tiktok/connect", async (req, res) => {
   let { uniqueId, sessionId } = req.body;
   const cleanId = cleanTikTokUniqueId(uniqueId);
   if (!cleanId) {
-    return res.status(400).json({ error: "TikTok ID không được để trống hoặc không hợp lệ" });
+    return res
+      .status(400)
+      .json({ error: "TikTok ID không được để trống hoặc không hợp lệ" });
   }
 
   // Save session ID for future reloads
   activeSession.savedUniqueId = cleanId;
 
   // If already connected to the same ID, return success immediately
-  if (activeSession.isConnected && activeSession.uniqueId === cleanId && activeSession.tiktokLiveConnection) {
+  if (
+    activeSession.isConnected &&
+    activeSession.uniqueId === cleanId &&
+    activeSession.tiktokLiveConnection
+  ) {
     return res.json({
       success: true,
       message: `Đã kết nối sẵn tới @${cleanId}`,
@@ -493,7 +620,11 @@ app.post("/api/tiktok/connect", async (req, res) => {
       },
     };
 
-    if (sessionId && typeof sessionId === "string" && sessionId.trim().length > 0) {
+    if (
+      sessionId &&
+      typeof sessionId === "string" &&
+      sessionId.trim().length > 0
+    ) {
       connectorOptions.session = {
         cookie: {
           sessionid: sessionId.trim(),
@@ -508,7 +639,11 @@ app.post("/api/tiktok/connect", async (req, res) => {
       activeSession.roomInfo = {
         title: state?.roomInfo?.title || `TikTok Live @${cleanId}`,
         ownerName: state?.roomInfo?.owner?.nickname || cleanId,
-        ownerAvatar: getProxiedAvatarUrl(state?.roomInfo?.owner, cleanId, state?.roomInfo?.owner?.nickname),
+        ownerAvatar: getProxiedAvatarUrl(
+          state?.roomInfo?.owner,
+          cleanId,
+          state?.roomInfo?.owner?.nickname,
+        ),
         viewerCount: state?.roomInfo?.user_count || 0,
         likeCount: state?.roomInfo?.like_count || 0,
         giftCount: 0,
@@ -526,12 +661,17 @@ app.post("/api/tiktok/connect", async (req, res) => {
     tiktokLive.on("chat", (data: any) => {
       if (!data) return;
       const commentText = data.comment || data.content || "";
-      const senderNick = data.nickname || data.user?.nickname || cleanId || "Người xem";
-      const senderUid = data.uniqueId || data.user?.uniqueId || "user";
+      const { nickname: senderNick, uniqueId: senderUid } = extractUserInfo(
+        data,
+        "user",
+        cleanId,
+      );
       const avatar = getProxiedAvatarUrl(data, senderUid, senderNick);
 
       const commentEvent = {
-        id: data.msgId || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id:
+          data.msgId ||
+          `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         type: "chat",
         uniqueId: senderUid,
         nickname: senderNick,
@@ -549,14 +689,24 @@ app.post("/api/tiktok/connect", async (req, res) => {
 
     tiktokLive.on("gift", (data: any) => {
       if (!data) return;
-      if (data.giftType === 1 && !data.repeatEnd && data.comboCount < (data.repeatCount || 1)) {
+      if (
+        data.giftType === 1 &&
+        !data.repeatEnd &&
+        data.comboCount < (data.repeatCount || 1)
+      ) {
         return;
       }
-      const giftName = data.giftName || data.extendedGiftInfo?.name || "Hộp Quà";
-      const diamondCount = Number(data.diamondCount || data.extendedGiftInfo?.diamondCount || 1);
+      const giftName =
+        data.giftName || data.extendedGiftInfo?.name || "Hộp Quà";
+      const diamondCount = Number(
+        data.diamondCount || data.extendedGiftInfo?.diamondCount || 1,
+      );
       const repeatCount = Number(data.repeatCount || data.comboCount || 1);
-      const senderNick = data.nickname || data.user?.nickname || cleanId || "Người xem";
-      const senderUid = data.uniqueId || data.user?.uniqueId || "user";
+      const { nickname: senderNick, uniqueId: senderUid } = extractUserInfo(
+        data,
+        "user",
+        cleanId,
+      );
       const avatar = getProxiedAvatarUrl(data, senderUid, senderNick);
 
       const giftEvent = {
@@ -569,7 +719,10 @@ app.post("/api/tiktok/connect", async (req, res) => {
         diamondCount,
         repeatCount,
         profilePictureUrl: avatar,
-        giftPictureUrl: data.giftPictureUrl || data.extendedGiftInfo?.image?.urlList?.[0] || "",
+        giftPictureUrl:
+          data.giftPictureUrl ||
+          data.extendedGiftInfo?.image?.urlList?.[0] ||
+          "",
         timestamp: Date.now(),
       };
       broadcastEvent("gift", giftEvent);
@@ -577,8 +730,8 @@ app.post("/api/tiktok/connect", async (req, res) => {
 
     tiktokLive.on("like", (data: any) => {
       if (!data) return;
-      const senderNick = data.nickname || "Người xem";
-      const senderUid = data.uniqueId || "user";
+      const { nickname: senderNick, uniqueId: senderUid } =
+        extractUserInfo(data);
       broadcastEvent("like", {
         id: `like_${Date.now()}`,
         type: "like",
@@ -591,34 +744,45 @@ app.post("/api/tiktok/connect", async (req, res) => {
       });
     });
 
-    tiktokLive.on("social", (data: any) => {
+    const handleSocialEvent = (data: any, defaultType = "follow") => {
       if (!data) return;
-      const senderNick = data.nickname || "Người xem";
-      const senderUid = data.uniqueId || "user";
+      const { nickname, uniqueId } = extractUserInfo(data);
+      const rawDisplayType = String(
+        data.displayType || defaultType || "",
+      ).toLowerCase();
+      const rawLabel = String(data.label || "").toLowerCase();
+      const isShare =
+        rawDisplayType.includes("share") ||
+        rawLabel.includes("chia sẻ") ||
+        rawLabel.includes("share");
+      const displayType = isShare ? "share" : "follow";
+      const label = isShare ? "Chia sẻ" : "Theo dõi";
+
       broadcastEvent("social", {
-        id: `social_${Date.now()}`,
+        id: `social_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         type: "social",
-        uniqueId: senderUid,
-        nickname: senderNick,
-        displayType: data.displayType || "follow",
-        label: data.label || "Theo dõi",
-        profilePictureUrl: getProxiedAvatarUrl(data, senderUid, senderNick),
+        uniqueId,
+        nickname,
+        displayType,
+        label,
+        profilePictureUrl: getProxiedAvatarUrl(data, uniqueId, nickname),
         timestamp: Date.now(),
       });
-    });
+    };
 
-    tiktokLive.on("follow", (data: any) => {
+    tiktokLive.on("social", (data: any) =>
+      handleSocialEvent(data, data.displayType || "follow"),
+    );
+    tiktokLive.on("follow", (data: any) => handleSocialEvent(data, "follow"));
+    tiktokLive.on("member", (data: any) => {
       if (!data) return;
-      const senderNick = data.nickname || "Người xem";
-      const senderUid = data.uniqueId || "user";
-      broadcastEvent("social", {
-        id: `follow_${Date.now()}`,
-        type: "social",
-        uniqueId: senderUid,
-        nickname: senderNick,
-        displayType: "follow",
-        label: "Theo dõi",
-        profilePictureUrl: getProxiedAvatarUrl(data, senderUid, senderNick),
+      const { nickname, uniqueId } = extractUserInfo(data);
+      broadcastEvent("member", {
+        id: `member_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        type: "member",
+        uniqueId,
+        nickname,
+        profilePictureUrl: getProxiedAvatarUrl(data, uniqueId, nickname),
         timestamp: Date.now(),
       });
     });
@@ -632,7 +796,9 @@ app.post("/api/tiktok/connect", async (req, res) => {
 
     tiktokLive.on("streamEnd", () => {
       activeSession.isConnected = false;
-      broadcastEvent("stream_end", { message: "Buổi phát trực tiếp đã kết thúc" });
+      broadcastEvent("stream_end", {
+        message: "Buổi phát trực tiếp đã kết thúc",
+      });
     });
 
     tiktokLive.on("disconnected", () => {
@@ -653,7 +819,9 @@ app.post("/api/tiktok/connect", async (req, res) => {
         return;
       }
       broadcastEvent("error", {
-        message: errMsg || "Lỗi kết nối TikTok Live. Hãy chắc chắn tài khoản đang Live!",
+        message:
+          errMsg ||
+          "Lỗi kết nối TikTok Live. Hãy chắc chắn tài khoản đang Live!",
       });
     });
 
@@ -672,7 +840,8 @@ app.post("/api/tiktok/connect", async (req, res) => {
     console.error("Failed to connect TikTok Live:", err);
     activeSession.isConnected = false;
     const msg = err?.message || String(err || "");
-    let userMsg = "Không thể kết nối. Tài khoản có thể đang Offline hoặc ID chưa đúng.";
+    let userMsg =
+      "Không thể kết nối. Tài khoản có thể đang Offline hoặc ID chưa đúng.";
     if (msg.includes("LIVE has ended") || msg.includes("offline")) {
       userMsg = `Tài khoản @${cleanId} hiện đang KHÔNG phát trực tiếp (Offline).`;
     } else if (msg.includes("User not found") || msg.includes("not found")) {
@@ -733,7 +902,7 @@ app.get("/api/tiktok/events", (req, res) => {
       isSimulated: activeSession.isSimulated,
       ttsSettings: activeSession.ttsSettings,
       roomInfo: activeSession.roomInfo,
-    })}\n\n`
+    })}\n\n`,
   );
 
   req.on("close", () => {
@@ -818,8 +987,13 @@ async function startServer() {
     });
   }
 
+  // Explicit static sound files serving
+  app.use("/sounds", express.static(path.join(process.cwd(), "public/sounds")));
+
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`TikTok Live Reader Server running on http://localhost:${PORT}`);
+    console.log(
+      `TikTok Live Reader Server running on http://localhost:${PORT}`,
+    );
   });
 }
 

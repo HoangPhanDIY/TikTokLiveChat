@@ -7,7 +7,10 @@ class AudioManager {
   private currentSourceNode: AudioBufferSourceNode | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private audioCtx: AudioContext | null = null;
-  private onQueueChangeCallback?: (queue: QueueItem[], currentItem: QueueItem | null) => void;
+  private onQueueChangeCallback?: (
+    queue: QueueItem[],
+    currentItem: QueueItem | null,
+  ) => void;
   private currentItem: QueueItem | null = null;
   private isPaused = false;
 
@@ -30,7 +33,9 @@ class AudioManager {
     }
   }
 
-  public setQueueCallback(cb: (queue: QueueItem[], currentItem: QueueItem | null) => void) {
+  public setQueueCallback(
+    cb: (queue: QueueItem[], currentItem: QueueItem | null) => void,
+  ) {
     this.onQueueChangeCallback = cb;
   }
 
@@ -42,7 +47,8 @@ class AudioManager {
 
   public getAudioContext(): AudioContext {
     if (!this.audioCtx) {
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtxClass =
+        window.AudioContext || (window as any).webkitAudioContext;
       this.audioCtx = new AudioCtxClass();
     }
     if (this.audioCtx.state === "suspended") {
@@ -66,6 +72,62 @@ class AudioManager {
     } catch (e) {
       // ignore
     }
+  }
+
+  // Play real MP3 sound from /sounds/:name.mp3 with automatic audio synthesis fallback
+  public playMp3(
+    soundName: "notification" | "follow" | "gift" | "connect",
+    volume = 1.0,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      let resolved = false;
+      const safeResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
+      try {
+        const audio = new Audio(`/sounds/${soundName}.mp3`);
+        audio.volume = Math.max(
+          0,
+          Math.min(1, typeof volume === "number" ? volume : 1.0),
+        );
+
+        audio.onended = () => safeResolve();
+        audio.onerror = () => {
+          this.playSound(soundName === "notification" ? "comment" : soundName);
+          setTimeout(safeResolve, 350);
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            this.playSound(
+              soundName === "notification" ? "comment" : soundName,
+            );
+            setTimeout(safeResolve, 350);
+          });
+        }
+
+        // Safety timeout so pipeline never blocks
+        setTimeout(safeResolve, 650);
+      } catch (e) {
+        this.playSound(soundName === "notification" ? "comment" : soundName);
+        setTimeout(safeResolve, 350);
+      }
+    });
+  }
+
+  // Play MP3 notification chime before reading comments
+  public playNotificationChime(volume = 1.0): Promise<void> {
+    return this.playMp3("notification", volume);
+  }
+
+  // Play MP3 notification chime when someone follows
+  public playFollowChime(volume = 1.0): Promise<void> {
+    return this.playMp3("follow", volume);
   }
 
   // Synthesized Sound Effects
@@ -94,7 +156,10 @@ class AudioManager {
           osc.type = "triangle";
           osc.frequency.setValueAtTime(freq, now + idx * 0.07);
           gain.gain.setValueAtTime(0.2, now + idx * 0.07);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.35);
+          gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            now + idx * 0.07 + 0.35,
+          );
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(now + idx * 0.07);
@@ -147,7 +212,10 @@ class AudioManager {
   }
 
   // Clean & preprocess text for natural Vietnamese TTS
-  public cleanTextForSpeech(text: string, settings?: Partial<TtsSettings>): string {
+  public cleanTextForSpeech(
+    text: string,
+    settings?: Partial<TtsSettings>,
+  ): string {
     if (!text || typeof text !== "string") return "";
 
     let cleaned = text.trim();
@@ -165,15 +233,20 @@ class AudioManager {
     if (settings?.stripEmojis) {
       cleaned = cleaned.replace(
         /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
-        ""
+        "",
       );
     }
 
     // 4. Blacklist filter
-    const blacklist = Array.isArray(settings?.blacklistWords) ? settings.blacklistWords : [];
+    const blacklist = Array.isArray(settings?.blacklistWords)
+      ? settings.blacklistWords
+      : [];
     for (const badWord of blacklist) {
       if (!badWord || typeof badWord !== "string" || !badWord.trim()) continue;
-      const regex = new RegExp(`\\b${badWord.trim()}\\b|${badWord.trim()}`, "gi");
+      const regex = new RegExp(
+        `\\b${badWord.trim()}\\b|${badWord.trim()}`,
+        "gi",
+      );
       cleaned = cleaned.replace(regex, "bíp");
     }
 
@@ -213,7 +286,12 @@ class AudioManager {
     const words = cleaned.split(/\s+/);
     const convertedWords = words.map((w) => {
       if (!w) return "";
-      const lower = w.toLowerCase().replace(/[^a-z0-9àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g, "");
+      const lower = w
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g,
+          "",
+        );
       if (abbreviations[lower]) {
         return abbreviations[lower];
       }
@@ -237,7 +315,7 @@ class AudioManager {
     commentText?: string,
     type: "chat" | "gift" | "social" = "chat",
     settings?: TtsSettings,
-    extraData?: { giftName?: string; count?: number; displayType?: string }
+    extraData?: { giftName?: string; count?: number; displayType?: string },
   ): string | null {
     if (!settings || !settings.enabled) return null;
 
@@ -248,8 +326,12 @@ class AudioManager {
       const minLength = settings.minCharLength ?? 1;
       if (safeComment.length < minLength) return null;
 
-      const blockPrefixes = Array.isArray(settings.blockPrefixes) ? settings.blockPrefixes : [];
-      if (blockPrefixes.some((prefix) => prefix && safeComment.startsWith(prefix))) {
+      const blockPrefixes = Array.isArray(settings.blockPrefixes)
+        ? settings.blockPrefixes
+        : [];
+      if (
+        blockPrefixes.some((prefix) => prefix && safeComment.startsWith(prefix))
+      ) {
         return null;
       }
 
@@ -263,7 +345,10 @@ class AudioManager {
         return null;
       }
 
-      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(0, 20);
+      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(
+        0,
+        20,
+      );
       const cleanComment = this.cleanTextForSpeech(safeComment, settings);
 
       if (!cleanComment) return null;
@@ -275,11 +360,15 @@ class AudioManager {
       }
     } else if (type === "gift") {
       if (!settings.readGifts) return null;
-      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(0, 20);
+      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(
+        0,
+        20,
+      );
       const giftName = extraData?.giftName || "quà";
       const count = extraData?.count || 1;
 
-      let template = settings.giftTemplate || "Cảm ơn {name} đã tặng {count} {gift}";
+      let template =
+        settings.giftTemplate || "Cảm ơn {name} đã tặng {count} {gift}";
       template = template
         .replace(/{name}/g, cleanSender)
         .replace(/{count}/g, count > 1 ? `${count}` : "")
@@ -288,11 +377,14 @@ class AudioManager {
       return template;
     } else if (type === "social") {
       if (!settings.readFollows) return null;
-      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(0, 20);
+      const cleanSender = this.cleanTextForSpeech(safeSender, settings).slice(
+        0,
+        20,
+      );
       if (extraData?.displayType === "share") {
         return `Cảm ơn ${cleanSender} đã chia sẻ buổi Live`;
       }
-      return `Cảm ơn ${cleanSender} đã theo dõi kênh`;
+      return `Cảm ơn ${cleanSender} đã follow kênh`;
     }
 
     return null;
@@ -306,7 +398,7 @@ class AudioManager {
       type: "chat" | "gift" | "social";
       extraData?: { giftName?: string; count?: number; displayType?: string };
     },
-    settings: TtsSettings
+    settings: TtsSettings,
   ) {
     if (!settings.enabled) return;
 
@@ -315,7 +407,7 @@ class AudioManager {
       item.originalText,
       item.type,
       settings,
-      item.extraData
+      item.extraData,
     );
 
     if (!textToSpeak) return;
@@ -354,7 +446,7 @@ class AudioManager {
       (v) =>
         v.lang.toLowerCase().includes("vi") ||
         v.name.toLowerCase().includes("vietnam") ||
-        v.name.toLowerCase().includes("tiếng việt")
+        v.name.toLowerCase().includes("tiếng việt"),
     );
   }
 
@@ -373,7 +465,7 @@ class AudioManager {
   public speakDirectly(
     text: string,
     settings: TtsSettings,
-    onFinish?: () => void
+    onFinish?: () => void,
   ) {
     this.stopCurrentSpeech();
     this.isSpeaking = true;
@@ -471,7 +563,11 @@ class AudioManager {
   }
 
   // 1. Authentic "Chị Google" voice with Web Audio API + HTML5 Audio fallback
-  private async speakGoogleAuthentic(text: string, settings: TtsSettings, onFinish: () => void) {
+  private async speakGoogleAuthentic(
+    text: string,
+    settings: TtsSettings,
+    onFinish: () => void,
+  ) {
     let finished = false;
     const triggerFinish = () => {
       if (finished) return;
@@ -497,7 +593,10 @@ class AudioManager {
 
           const source = ctx.createBufferSource();
           source.buffer = audioBuffer;
-          source.playbackRate.value = Math.max(0.5, Math.min(2.0, settings.rate));
+          source.playbackRate.value = Math.max(
+            0.5,
+            Math.min(2.0, settings.rate),
+          );
 
           const gainNode = ctx.createGain();
           gainNode.gain.value = Math.max(0, Math.min(1.0, settings.volume));
@@ -544,7 +643,11 @@ class AudioManager {
   }
 
   // 2. Web Speech API (HTML5 SpeechSynthesis)
-  private speakWebSpeech(text: string, settings: TtsSettings, onFinish: () => void) {
+  private speakWebSpeech(
+    text: string,
+    settings: TtsSettings,
+    onFinish: () => void,
+  ) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       // Fallback estimated duration so comment is not immediately hidden
       const estimatedMs = Math.max(2000, Math.min(8000, text.length * 90));
@@ -570,7 +673,7 @@ class AudioManager {
             (v) =>
               (v.name.includes("Google") && v.lang.includes("vi")) ||
               v.name.toLowerCase().includes("tiếng việt") ||
-              v.name.toLowerCase().includes("vietnamese")
+              v.name.toLowerCase().includes("vietnamese"),
           ) || voices.find((v) => v.lang.startsWith("vi"));
       }
 
@@ -602,10 +705,12 @@ class AudioManager {
     this.enqueue(
       {
         sender: "Chị Google",
-        originalText: sampleText || "Xin chào! Chị Google đã sẵn sàng đọc bình luận Live TikTok của bạn.",
+        originalText:
+          sampleText ||
+          "Xin chào! Chị Google đã sẵn sàng đọc bình luận Live TikTok của bạn.",
         type: "chat",
       },
-      { ...settings, enabled: true, readSenderName: false }
+      { ...settings, enabled: true, readSenderName: false },
     );
   }
 }

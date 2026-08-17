@@ -51,11 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 via-rose-500 to-cyan-400 p-[2px] flex items-center justify-center shadow-md">
-                <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                  <Radio className="w-5 h-5 text-pink-400 animate-pulse" />
-                </div>
-              </div>
               {isConnected && (
                 <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -76,7 +71,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <span>Đọc bình luận bằng giọng Chị Google</span>
                 <span className="inline-block w-1 h-1 rounded-full bg-slate-600"></span>
                 {isConnected ? (
                   <span className="text-emerald-400 font-medium flex items-center gap-1">
@@ -88,7 +82,8 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 ) : (
                   <span className="text-slate-400 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3 text-slate-500" /> Chưa kết nối
+                    <AlertCircle className="w-3 h-3 text-slate-500" /> Chưa kết
+                    nối
                   </span>
                 )}
               </p>
@@ -100,7 +95,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex md:hidden items-center gap-2 text-xs">
               <div className="flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
                 <Users className="w-3 h-3 text-cyan-400" />
-                <span className="font-semibold text-slate-200">{roomInfo.viewerCount.toLocaleString()}</span>
+                <span className="font-semibold text-slate-200">
+                  {roomInfo.viewerCount.toLocaleString()}
+                </span>
               </div>
             </div>
           )}
@@ -122,31 +119,49 @@ export const Header: React.FC<HeaderProps> = ({
                   {uniqueId[0]?.toUpperCase() || "T"}
                 </div>
               )}
-              <span className="font-medium text-slate-200 max-w-[140px] truncate" title={roomInfo.ownerName}>
+              <span
+                className="font-medium text-slate-200 max-w-[140px] truncate"
+                title={roomInfo.ownerName}
+              >
                 {roomInfo.ownerName || uniqueId}
               </span>
             </div>
 
             <div className="h-4 w-px bg-slate-700"></div>
 
-            <div className="flex items-center gap-1.5 text-cyan-300" title="Số người đang xem">
+            <div
+              className="flex items-center gap-1.5 text-cyan-300"
+              title="Số người đang xem"
+            >
               <Users className="w-3.5 h-3.5" />
-              <span className="font-bold">{roomInfo.viewerCount.toLocaleString()}</span>
+              <span className="font-bold">
+                {roomInfo.viewerCount.toLocaleString()}
+              </span>
               <span className="text-slate-400">xem</span>
             </div>
 
             <div className="h-4 w-px bg-slate-700"></div>
 
-            <div className="flex items-center gap-1.5 text-rose-400" title="Tổng lượt thích">
+            <div
+              className="flex items-center gap-1.5 text-rose-400"
+              title="Tổng lượt thích"
+            >
               <Heart className="w-3.5 h-3.5 fill-rose-500/30" />
-              <span className="font-bold">{roomInfo.likeCount.toLocaleString()}</span>
+              <span className="font-bold">
+                {roomInfo.likeCount.toLocaleString()}
+              </span>
             </div>
 
             <div className="h-4 w-px bg-slate-700"></div>
 
-            <div className="flex items-center gap-1.5 text-amber-300" title="Xu kim cương quà tặng">
+            <div
+              className="flex items-center gap-1.5 text-amber-300"
+              title="Xu kim cương quà tặng"
+            >
               <Gift className="w-3.5 h-3.5" />
-              <span className="font-bold">{roomInfo.giftCount.toLocaleString()}</span>
+              <span className="font-bold">
+                {roomInfo.giftCount.toLocaleString()}
+              </span>
             </div>
           </div>
         )}
@@ -181,12 +196,20 @@ export const Header: React.FC<HeaderProps> = ({
                 ? "bg-gradient-to-r from-pink-600 to-rose-600 border-pink-500 text-white shadow-md shadow-pink-500/20"
                 : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"
             }`}
-            title={ttsSettings.enabled ? "Đang bật đọc Chị Google" : "Đang tắt đọc Chị Google"}
+            title={
+              ttsSettings.enabled
+                ? "Đang bật đọc Chị Google"
+                : "Đang tắt đọc Chị Google"
+            }
           >
             {ttsSettings.enabled ? (
               <>
-                <Volume2 className={`w-3.5 h-3.5 ${isSpeaking ? "animate-bounce text-yellow-300" : ""}`} />
-                <span>Chị Google: <b>BẬT</b></span>
+                <Volume2
+                  className={`w-3.5 h-3.5 ${isSpeaking ? "animate-bounce text-yellow-300" : ""}`}
+                />
+                <span>
+                  Chị Google: <b>BẬT</b>
+                </span>
                 {queueCount > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 bg-white/20 rounded-full text-[10px] font-bold">
                     {queueCount}
@@ -196,7 +219,9 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <>
                 <VolumeX className="w-3.5 h-3.5" />
-                <span>Chị Google: <b>TẮT</b></span>
+                <span>
+                  Chị Google: <b>TẮT</b>
+                </span>
               </>
             )}
           </button>

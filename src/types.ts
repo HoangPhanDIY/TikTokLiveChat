@@ -21,6 +21,7 @@ export interface TikTokCommentEvent {
 }
 
 export interface TikTokGiftEvent {
+  msgId?: string;
   id: string;
   type: "gift";
   uniqueId: string;
@@ -93,7 +94,7 @@ export interface TtsSettings {
   pitch: number; // 0.5 to 1.5
   volume: number; // 0 to 1
   delayBetweenMessages: number; // in seconds
-  
+
   // Format & Content rules
   readSenderName: boolean;
   nameCommentSeparator: string; // "nói:", "bảo:", "hỏi:", ":"
@@ -102,7 +103,7 @@ export interface TtsSettings {
   minGiftDiamonds: number;
   readFollows: boolean;
   readLikes: boolean;
-  
+
   // Filters
   minCharLength: number;
   maxCharLength: number;

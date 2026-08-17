@@ -15,7 +15,12 @@ import {
   UserPlus,
   Heart,
 } from "lucide-react";
-import { LiveFeedItem, TikTokCommentEvent, TikTokSocialEvent, TtsSettings } from "../types";
+import {
+  LiveFeedItem,
+  TikTokCommentEvent,
+  TikTokSocialEvent,
+  TtsSettings,
+} from "../types";
 import { audioManager } from "../utils/audio";
 
 interface ObsOverlayModalProps {
@@ -73,9 +78,14 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
   ttsSettings,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [theme, setTheme] = useState<"glass" | "transparent" | "neon" | "green">("glass");
-  const [activeComment, setActiveComment] = useState<TikTokCommentEvent | null>(null);
-  const [activeFollower, setActiveFollower] = useState<TikTokSocialEvent | null>(null);
+  const [theme, setTheme] = useState<
+    "glass" | "transparent" | "neon" | "green"
+  >("glass");
+  const [activeComment, setActiveComment] = useState<TikTokCommentEvent | null>(
+    null,
+  );
+  const [activeFollower, setActiveFollower] =
+    useState<TikTokSocialEvent | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isDelaying, setIsDelaying] = useState(false);
   const [delayLeft, setDelayLeft] = useState(0);
@@ -94,7 +104,9 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
     audioManager.autoUnlock();
 
     // Find latest chat event
-    const chats = feedItems.filter((i) => i.type === "chat") as TikTokCommentEvent[];
+    const chats = feedItems.filter(
+      (i) => i.type === "chat",
+    ) as TikTokCommentEvent[];
     if (chats.length > 0) {
       const latest = chats[chats.length - 1];
       pendingRef.current.push(latest);
@@ -104,7 +116,9 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
     }
 
     // Find latest social / follow event
-    const socials = feedItems.filter((i) => i.type === "social") as TikTokSocialEvent[];
+    const socials = feedItems.filter(
+      (i) => i.type === "social",
+    ) as TikTokSocialEvent[];
     if (socials.length > 0) {
       const latestSocial = socials[socials.length - 1];
       followerQueueRef.current.push(latestSocial);
@@ -125,16 +139,49 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
     isFollowerBusyRef.current = true;
     setActiveFollower(nextFollower);
 
-    if (followTimerRef.current) clearTimeout(followTimerRef.current);
-    followTimerRef.current = setTimeout(() => {
-      setActiveFollower(null);
-      isFollowerBusyRef.current = false;
-      setTimeout(() => {
-        if (followerQueueRef.current.length > 0) {
-          runFollowerCycle();
-        }
-      }, 300);
-    }, 4500);
+    const settings = ttsSettings;
+    const followText = audioManager.formatSpeechText(
+      nextFollower.nickname || nextFollower.uniqueId || "Người xem",
+      "",
+      "social",
+      settings,
+      { displayType: nextFollower.displayType },
+    );
+
+    const finishFollow = () => {
+      if (followTimerRef.current) clearTimeout(followTimerRef.current);
+      followTimerRef.current = setTimeout(() => {
+        setActiveFollower(null);
+        isFollowerBusyRef.current = false;
+        setTimeout(() => {
+          if (followerQueueRef.current.length > 0) {
+            runFollowerCycle();
+          }
+        }, 300);
+      }, 2000);
+    };
+
+    const startFollowSpeech = () => {
+      if (settings?.enabled && settings?.readFollows && followText) {
+        audioManager.speakDirectly(followText, settings, finishFollow);
+      } else {
+        finishFollow();
+      }
+    };
+
+    // Khi có follow mới: phát MP3 sau đó đọc cảm ơn
+    if (settings?.soundEffects !== false) {
+      audioManager
+        .playFollowChime(settings?.volume)
+        .then(() => {
+          startFollowSpeech();
+        })
+        .catch(() => {
+          startFollowSpeech();
+        });
+    } else {
+      startFollowSpeech();
+    }
   };
 
   const runCycle = () => {
@@ -183,16 +230,20 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
       newest.nickname || newest.uniqueId || "Người xem",
       newest.comment || "",
       "chat",
-      settings
+      settings,
     );
 
     const finishCycle = () => {
+      // 1. Mất cmt ngay lập tức khi đọc xong
+      setActiveComment(null);
       setIsSpeaking(false);
       setIsDelaying(true);
-      const delay = Math.max(1, Math.round(settings.delayBetweenMessages || 3));
-      setDelayLeft(delay);
 
-      let remaining = delay;
+      // 2. Đợi số giây cấu hình (ví dụ 10s hoặc 3s)
+      const delay = Math.max(0.5, Number(settings.delayBetweenMessages ?? 3));
+      setDelayLeft(Math.ceil(delay));
+
+      let remaining = Math.ceil(delay);
       const interval = setInterval(() => {
         remaining -= 1;
         if (remaining > 0) {
@@ -210,16 +261,30 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
 
         if (pendingRef.current.length > 0) {
           runCycle();
-        } else {
-          setActiveComment(null);
         }
       }, delay * 1000);
     };
 
-    if (settings.enabled && textToSpeak) {
-      audioManager.speakDirectly(textToSpeak, settings, finishCycle);
+    const startSpeech = () => {
+      if (settings.enabled && textToSpeak) {
+        audioManager.speakDirectly(textToSpeak, settings, finishCycle);
+      } else {
+        finishCycle();
+      }
+    };
+
+    // Trước khi đọc cmt thì phát chuông thông báo MP3 rồi đọc cmt liền
+    if (settings.soundEffects !== false) {
+      audioManager
+        .playNotificationChime(settings.volume)
+        .then(() => {
+          startSpeech();
+        })
+        .catch(() => {
+          startSpeech();
+        });
     } else {
-      finishCycle();
+      startSpeech();
     }
   };
 
@@ -232,7 +297,8 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
         uniqueId: "hoang_diy",
         nickname: "Hoàng Phan Live",
         comment: "Chào shop, áo mẫu 1 này chất vải cotton hay thun lạnh vậy ạ?",
-        profilePictureUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        profilePictureUrl:
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
         timestamp: Date.now(),
       },
       {
@@ -240,8 +306,10 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
         type: "chat",
         uniqueId: "ngoc_anh_99",
         nickname: "Ngọc Ánh",
-        comment: "Giọng Chị Google đọc hay quá shop ơi, cho mình xin giá sỉ nhé!",
-        profilePictureUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+        comment:
+          "Giọng Chị Google đọc hay quá shop ơi, cho mình xin giá sỉ nhé!",
+        profilePictureUrl:
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
         timestamp: Date.now(),
       },
       {
@@ -250,12 +318,14 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
         uniqueId: "minh_quan_vlog",
         nickname: "Minh Quân Vlog",
         comment: "Đã thả 50 tim cho chủ phòng rồi nha!",
-        profilePictureUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        profilePictureUrl:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
         timestamp: Date.now(),
       },
     ];
 
-    const random = testComments[Math.floor(Math.random() * testComments.length)];
+    const random =
+      testComments[Math.floor(Math.random() * testComments.length)];
     pendingRef.current.push(random);
     if (!isBusyRef.current) {
       runCycle();
@@ -270,7 +340,8 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
         uniqueId: "lan_huong_live",
         nickname: "Lan Hương",
         displayType: "follow",
-        profilePictureUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+        profilePictureUrl:
+          "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
         timestamp: Date.now(),
       },
       {
@@ -279,11 +350,13 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
         uniqueId: "anh_tuan_98",
         nickname: "Anh Tuấn Gaming",
         displayType: "follow",
-        profilePictureUrl: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+        profilePictureUrl:
+          "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
         timestamp: Date.now(),
       },
     ];
-    const random = testFollowers[Math.floor(Math.random() * testFollowers.length)];
+    const random =
+      testFollowers[Math.floor(Math.random() * testFollowers.length)];
     followerQueueRef.current.push(random);
     if (!isFollowerBusyRef.current) {
       runFollowerCycle();
@@ -299,7 +372,8 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentUrl = typeof window !== "undefined" ? window.location.origin + "?view=obs" : "";
+  const currentUrl =
+    typeof window !== "undefined" ? window.location.origin + "?view=obs" : "";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentUrl);
@@ -317,9 +391,12 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
               <Tv className="w-5 h-5 text-pink-400" />
             </div>
             <div>
-              <h2 className="font-bold text-base text-white">OBS Studio & TikTok Live Widget</h2>
+              <h2 className="font-bold text-base text-white">
+                OBS Studio & TikTok Live Widget
+              </h2>
               <p className="text-xs text-slate-400">
-                Đọc cmt mới nhất + Cảm ơn Follow ở góc trên phải (Song song, không cần đọc) + Avatar TikTok
+                Đọc cmt mới nhất + Cảm ơn Follow ở góc trên phải (Song song,
+                không cần đọc) + Avatar TikTok
               </p>
             </div>
           </div>
@@ -366,17 +443,23 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
                     : "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white shadow-md shadow-pink-600/20"
                 }`}
               >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
                 <span>{copied ? "Đã sao chép" : "Sao chép URL"}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-400 leading-relaxed pt-1">
               <p>
-                💬 <b>Bình luận dưới</b>: Hiện 1 cmt mới nhất + Avatar thật ➔ Chị Google đọc ➔ Delay 3s ➔ Tự ẩn khi hết cmt.
+                💬 <b>Bình luận dưới</b>: Hiện 1 cmt mới nhất + Avatar thật ➔
+                Chị Google đọc ➔ Delay 3s ➔ Tự ẩn khi hết cmt.
               </p>
               <p>
-                🎉 <b>Follow góc trên phải</b>: Tự động hiển thị cảm ơn Follower song song, không chen ngang hay đọc giọng TTS.
+                🎉 <b>Follow góc trên phải</b>: Tự động hiển thị cảm ơn Follower
+                song song, không chen ngang hay đọc giọng TTS.
               </p>
             </div>
           </div>
@@ -462,7 +545,8 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-400 text-center">
-                  Follow hiển thị ở góc trên bên phải độc lập, không làm ngắt quãng giọng đọc comment.
+                  Follow hiển thị ở góc trên bên phải độc lập, không làm ngắt
+                  quãng giọng đọc comment.
                 </p>
               </div>
             </div>
@@ -473,7 +557,10 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5 text-pink-400" />
-                <span>Màn hình OBS trực quan (Bình luận ở dưới, Follow ở góc trên phải):</span>
+                <span>
+                  Màn hình OBS trực quan (Bình luận ở dưới, Follow ở góc trên
+                  phải):
+                </span>
               </span>
 
               {isSpeaking ? (
@@ -494,10 +581,10 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
                 theme === "green"
                   ? "bg-[#00b140] border-emerald-600"
                   : theme === "neon"
-                  ? "bg-slate-950 border-pink-500/60 shadow-[inset_0_0_20px_rgba(236,72,153,0.2)]"
-                  : theme === "transparent"
-                  ? "bg-slate-950/40 border-dashed border-slate-700 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]"
-                  : "bg-slate-950/90 border-slate-800"
+                    ? "bg-slate-950 border-pink-500/60 shadow-[inset_0_0_20px_rgba(236,72,153,0.2)]"
+                    : theme === "transparent"
+                      ? "bg-slate-950/40 border-dashed border-slate-700 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]"
+                      : "bg-slate-950/90 border-slate-800"
               }`}
             >
               {/* TOP RIGHT: Follow Alert */}
@@ -605,8 +692,13 @@ export const ObsOverlayModal: React.FC<ObsOverlayModalProps> = ({
                   <div className="bg-black/50 backdrop-blur-md rounded-2xl p-4 border border-white/10 text-white text-xs flex items-center gap-3">
                     <MessageSquare className="w-5 h-5 text-pink-400 shrink-0" />
                     <div>
-                      <p className="font-bold text-pink-300">Đang chờ bình luận TikTok...</p>
-                      <p className="text-slate-400 mt-0.5">Khi không có bình luận, màn hình OBS sẽ hoàn toàn trống và trong suốt.</p>
+                      <p className="font-bold text-pink-300">
+                        Đang chờ bình luận TikTok...
+                      </p>
+                      <p className="text-slate-400 mt-0.5">
+                        Khi không có bình luận, màn hình OBS sẽ hoàn toàn trống
+                        và trong suốt.
+                      </p>
                     </div>
                   </div>
                 )}

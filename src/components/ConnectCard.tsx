@@ -47,7 +47,9 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
 
   const [storedSessionId, setStoredSessionId] = useState<string>(() => {
     try {
-      return savedUniqueId || localStorage.getItem("tiktok_saved_unique_id") || "";
+      return (
+        savedUniqueId || localStorage.getItem("tiktok_saved_unique_id") || ""
+      );
     } catch {
       return "";
     }
@@ -82,7 +84,9 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
     e.preventDefault();
     const cleanId = inputId.trim();
     if (!cleanId) {
-      setErrorMsg("Vui lòng nhập TikTok Username (Ví dụ: hoangphan_diy hoặc @hoangphan_diy)");
+      setErrorMsg(
+        "Vui lòng nhập TikTok Username (Ví dụ: hoangphan_diy hoặc @hoangphan_diy)",
+      );
       return;
     }
     setErrorMsg("");
@@ -101,7 +105,7 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
     onConnect(idToConnect, sessionId ? sessionId.trim() : undefined);
   };
 
-  const sampleAccounts = ["hoangphan_diy", "streamer_vietnam", "mixigaming", "linhbarbie"];
+  const sampleAccounts = ["hoangaonhay.aov", "bangiusix", "adc.gaming99"];
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
@@ -111,8 +115,12 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
             <Radio className="w-4 h-4 text-pink-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-100 text-sm">Kết nối TikTok Live</h2>
-            <p className="text-xs text-slate-400">Tự động nhớ ID tài khoản khi tải lại trang</p>
+            <h2 className="font-semibold text-slate-100 text-sm">
+              Kết nối TikTok Live
+            </h2>
+            <p className="text-xs text-slate-400">
+              Tự động nhớ ID tài khoản khi tải lại trang
+            </p>
           </div>
         </div>
 
@@ -160,7 +168,9 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
             <div className="flex items-center gap-1.5 truncate">
               <CheckCircle2 className="w-3.5 h-3.5 text-pink-400 shrink-0" />
               <span className="text-slate-400">ID đã lưu:</span>
-              <span className="font-bold text-pink-300 truncate">{storedSessionId}</span>
+              <span className="font-bold text-pink-300 truncate">
+                {storedSessionId}
+              </span>
             </div>
             {inputId !== storedSessionId && (
               <button
@@ -184,7 +194,11 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
               className="text-xs text-slate-400 hover:text-slate-300 flex items-center gap-1 cursor-pointer transition py-0.5"
             >
               <SlidersHorizontal className="w-3 h-3 text-pink-400" />
-              <span>{showAdvanced ? "Ẩn cài đặt nâng cao" : "Cài đặt nâng cao (TikTok Session ID nếu cần)"}</span>
+              <span>
+                {showAdvanced
+                  ? "Ẩn cài đặt nâng cao"
+                  : "Cài đặt nâng cao (TikTok Session ID nếu cần)"}
+              </span>
             </button>
 
             {showAdvanced && (
@@ -206,7 +220,8 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-pink-500 font-mono"
                 />
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Chỉ cần nhập nếu tài khoản của bạn bật giới hạn độ tuổi người xem hoặc TikTok yêu cầu phiên đăng nhập.
+                  Chỉ cần nhập nếu tài khoản của bạn bật giới hạn độ tuổi người
+                  xem hoặc TikTok yêu cầu phiên đăng nhập.
                 </p>
               </div>
             )}
@@ -295,7 +310,9 @@ export const ConnectCard: React.FC<ConnectCardProps> = ({
           <span>Lưu ý kết nối:</span>
         </div>
         <p className="pl-5 text-[11px] leading-relaxed">
-          TikTok ID của bạn đã được <b>lưu tự động</b>. Khi bạn F5 hoặc mở lại trình duyệt sau này, ID sẽ tự động điền sẵn để kết nối ngay mà không cần nhập lại.
+          TikTok ID của bạn đã được <b>lưu tự động</b>. Khi bạn F5 hoặc mở lại
+          trình duyệt sau này, ID sẽ tự động điền sẵn để kết nối ngay mà không
+          cần nhập lại.
         </p>
       </div>
     </div>

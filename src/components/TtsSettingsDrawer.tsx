@@ -282,17 +282,42 @@ export const TtsSettingsDrawer: React.FC<TtsSettingsDrawerProps> = ({
             </div>
 
             {/* Delay between messages */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-300">
-                <span>Thời gian nghỉ (Delay) sau khi đọc xong:</span>
-                <span className="font-mono text-pink-400 font-bold">
-                  {settings.delayBetweenMessages}s
-                </span>
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-slate-300">
+                <div>
+                  <span className="font-semibold text-slate-200 block text-xs">
+                    Thời gian nghỉ giữa các lần đọc:
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Đọc xong cmt đầu ➔ mất cmt ➔ đợi X giây ➔ đọc cmt tiếp theo
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="1"
+                    value={settings.delayBetweenMessages}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      onUpdateSettings({
+                        delayBetweenMessages: isNaN(val)
+                          ? 3
+                          : Math.max(0, Math.min(60, val)),
+                      });
+                    }}
+                    className="w-14 bg-slate-900 border border-pink-500/40 rounded-lg px-1.5 py-1 text-center font-mono text-xs text-pink-300 font-bold focus:outline-none focus:border-pink-400"
+                  />
+                  <span className="text-xs text-slate-400 font-bold">giây</span>
+                </div>
               </div>
+
+              {/* Slider */}
               <input
                 type="range"
                 min="0.5"
-                max="10.0"
+                max="30.0"
                 step="0.5"
                 value={settings.delayBetweenMessages}
                 onChange={(e) =>
@@ -302,12 +327,25 @@ export const TtsSettingsDrawer: React.FC<TtsSettingsDrawerProps> = ({
                 }
                 className="w-full accent-pink-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>0.5s</span>
-                <span className="text-pink-400 font-semibold">
-                  Mặc định: 3.0s
-                </span>
-                <span>10s</span>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                {[1, 3, 5, 10, 15, 20, 30].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() =>
+                      onUpdateSettings({ delayBetweenMessages: sec })
+                    }
+                    className={`px-2 py-0.5 rounded text-[11px] font-mono transition cursor-pointer ${
+                      settings.delayBetweenMessages === sec
+                        ? "bg-pink-500 text-white font-bold shadow-sm shadow-pink-500/30"
+                        : "bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white"
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
               </div>
             </div>
           </div>

@@ -48,7 +48,29 @@ const INITIAL_TTS_SETTINGS: TtsSettings = {
   maxCharLength: 120,
   stripEmojis: true,
   simplifyRepeatedChars: true,
-  blacklistWords: ["đụ", "địt", "lồn", "buồi", "cặc", "đm", "dmm", "vcl"],
+  blacklistWords: [
+    "đụ",
+    "địt",
+    "lồn",
+    "buồi",
+    "cặc",
+    "đm",
+    "dmm",
+    "vcl",
+    "xem hàu",
+    "vui vẻ",
+    "nhắn em",
+    "tele",
+    "lili",
+    "van",
+    "val",
+    "hàu",
+    "xem hàu",
+    "xem trước",
+    "đi khách",
+    "hyt",
+    "hayate",
+  ],
   blockPrefixes: ["!", "/"],
   onlyReadQuestions: false,
   soundEffects: true,
@@ -229,9 +251,6 @@ export default function App() {
           type: "success",
           message: `Đã kết nối thành công tới phòng Live @${data.uniqueId}!`,
         });
-        if (settingsRef.current.soundEffects) {
-          audioManager.playSound("connect");
-        }
       } catch (err) {
         console.error(err);
       }
@@ -242,10 +261,6 @@ export default function App() {
         const chatData: TikTokCommentEvent = JSON.parse(e.data);
         if (!chatData) return;
         setFeedItems((prev) => [...prev, chatData]);
-
-        if (settingsRef.current?.soundEffects) {
-          audioManager.playSound("comment");
-        }
       } catch (err) {
         console.error("SSE Chat parse error:", err);
       }
@@ -263,10 +278,6 @@ export default function App() {
           ...prev,
           giftCount: (prev.giftCount || 0) + diamond * count,
         }));
-
-        if (settingsRef.current?.soundEffects) {
-          audioManager.playSound("gift");
-        }
       } catch (err) {
         console.error("SSE Gift parse error:", err);
       }
@@ -290,10 +301,6 @@ export default function App() {
       try {
         const socialData = JSON.parse(e.data);
         setFeedItems((prev) => [...prev, socialData]);
-
-        if (settingsRef.current?.soundEffects) {
-          audioManager.playSound("follow");
-        }
       } catch (err) {
         console.error(err);
       }
@@ -490,7 +497,7 @@ export default function App() {
       {latestGift && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-3">
           <GiftAlertBanner
-            gift={latestGift}
+            latestGift={latestGift}
             onClose={() => setLatestGift(null)}
           />
         </div>

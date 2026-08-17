@@ -5,9 +5,12 @@ import { TikTokGiftEvent } from "../types";
 
 interface GiftAlertBannerProps {
   latestGift: TikTokGiftEvent | null;
+  onClose?: () => void;
 }
 
-export const GiftAlertBanner: React.FC<GiftAlertBannerProps> = ({ latestGift }) => {
+export const GiftAlertBanner: React.FC<GiftAlertBannerProps> = ({
+  latestGift,
+}) => {
   const [visible, setVisible] = useState(false);
   const [currentGift, setCurrentGift] = useState<TikTokGiftEvent | null>(null);
 
@@ -74,7 +77,9 @@ export const GiftAlertBanner: React.FC<GiftAlertBannerProps> = ({ latestGift }) 
             <span className="bg-white/20 px-1.5 py-0.2 rounded font-bold text-white">
               {currentGift.giftName}
             </span>
-            <span>({currentGift.diamondCount * currentGift.repeatCount} 💎)</span>
+            <span>
+              ({currentGift.diamondCount * currentGift.repeatCount} 💎)
+            </span>
           </p>
         </div>
       </div>

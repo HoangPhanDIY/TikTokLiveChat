@@ -27,7 +27,29 @@ const DEFAULT_TTS_SETTINGS: TtsSettings = {
   maxCharLength: 120,
   stripEmojis: true,
   simplifyRepeatedChars: true,
-  blacklistWords: ["đụ", "địt", "lồn", "buồi", "cặc", "đm", "dmm", "vcl"],
+  blacklistWords: [
+    "đụ",
+    "địt",
+    "lồn",
+    "buồi",
+    "cặc",
+    "đm",
+    "dmm",
+    "vcl",
+    "xem hàu",
+    "vui vẻ",
+    "nhắn em",
+    "tele",
+    "lili",
+    "van",
+    "val",
+    "hàu",
+    "xem hàu",
+    "xem trước",
+    "đi khách",
+    "hyt",
+    "hayate",
+  ],
   blockPrefixes: ["!", "/"],
   onlyReadQuestions: false,
   soundEffects: true,
@@ -132,16 +154,49 @@ export const StandaloneObsView: React.FC = () => {
     isFollowerBusyRef.current = true;
     setCurrentFollower(nextFollower);
 
-    if (followTimerRef.current) clearTimeout(followTimerRef.current);
-    followTimerRef.current = setTimeout(() => {
-      setCurrentFollower(null);
-      isFollowerBusyRef.current = false;
-      setTimeout(() => {
-        if (followerQueueRef.current.length > 0) {
-          processNextFollower();
-        }
-      }, 300);
-    }, 4500);
+    const settings = settingsRef.current;
+    const followText = audioManager.formatSpeechText(
+      nextFollower.nickname || nextFollower.uniqueId || "Người xem",
+      "",
+      "social",
+      settings,
+      { displayType: nextFollower.displayType },
+    );
+
+    const finishFollow = () => {
+      if (followTimerRef.current) clearTimeout(followTimerRef.current);
+      followTimerRef.current = setTimeout(() => {
+        setCurrentFollower(null);
+        isFollowerBusyRef.current = false;
+        setTimeout(() => {
+          if (followerQueueRef.current.length > 0) {
+            processNextFollower();
+          }
+        }, 300);
+      }, 2000);
+    };
+
+    const startFollowSpeech = () => {
+      if (settings.enabled && settings.readFollows && followText) {
+        audioManager.speakDirectly(followText, settings, finishFollow);
+      } else {
+        finishFollow();
+      }
+    };
+
+    // Khi có người theo dõi mới: Phát MP3 thông báo sau đó đọc lời cảm ơn
+    if (settings.soundEffects !== false) {
+      audioManager
+        .playFollowChime(settings.volume)
+        .then(() => {
+          startFollowSpeech();
+        })
+        .catch(() => {
+          startFollowSpeech();
+        });
+    } else {
+      startFollowSpeech();
+    }
   };
 
   const processNextComment = () => {
@@ -152,6 +207,7 @@ export const StandaloneObsView: React.FC = () => {
       return;
     }
 
+    // Lấy cmt mới nhất và xóa backlog cũ
     const newestComment =
       pendingCommentsRef.current[pendingCommentsRef.current.length - 1];
     pendingCommentsRef.current = [];
@@ -173,16 +229,19 @@ export const StandaloneObsView: React.FC = () => {
     );
 
     const onSpeechFinished = () => {
+      // 1. Khi đọc xong, mất cmt ngay lập tức
+      setCurrentComment(null);
       setIsSpeaking(false);
       setIsDelaying(true);
 
+      // 2. Đợi số giây cấu hình (ví dụ: 10s hoặc 3s) mới đọc cmt mới nhất tiếp theo
       const delaySeconds = Math.max(
-        1,
-        Math.round(settings.delayBetweenMessages || 3),
+        0.5,
+        Number(settings.delayBetweenMessages ?? 3),
       );
-      setDelayLeft(delaySeconds);
+      setDelayLeft(Math.ceil(delaySeconds));
 
-      let remaining = delaySeconds;
+      let remaining = Math.ceil(delaySeconds);
       const interval = setInterval(() => {
         remaining -= 1;
         if (remaining > 0) {
@@ -198,18 +257,33 @@ export const StandaloneObsView: React.FC = () => {
         setDelayLeft(0);
         isBusyRef.current = false;
 
+        // Đợi xong khoảng thời gian set trước, nếu có cmt mới nhất tiếp theo thì tiếp tục đọc
         if (pendingCommentsRef.current.length > 0) {
           processNextComment();
-        } else {
-          setCurrentComment(null);
         }
       }, delaySeconds * 1000);
     };
 
-    if (settings.enabled && textToSpeak) {
-      audioManager.speakDirectly(textToSpeak, settings, onSpeechFinished);
+    const startSpeaking = () => {
+      if (settings.enabled && textToSpeak) {
+        audioManager.speakDirectly(textToSpeak, settings, onSpeechFinished);
+      } else {
+        onSpeechFinished();
+      }
+    };
+
+    // Trước khi đọc cmt thì phát đoạn âm thanh thông báo MP3 rồi mới đọc cmt liền
+    if (settings.soundEffects !== false) {
+      audioManager
+        .playNotificationChime(settings.volume)
+        .then(() => {
+          startSpeaking();
+        })
+        .catch(() => {
+          startSpeaking();
+        });
     } else {
-      onSpeechFinished();
+      startSpeaking();
     }
   };
 
@@ -301,37 +375,31 @@ export const StandaloneObsView: React.FC = () => {
       <style>{customStyles}</style>
 
       {/* TOP-RIGHT: Follower Notification Banner */}
-      <div className="fixed top-6 right-6 z-50 max-w-sm pointer-events-auto">
+      <div className="fixed top-50 right-50 z-50 max-w-sm pointer-events-auto">
         {currentFollower && (
-          <div className="p-[2px] animated-fb-border shadow-[0_10px_35px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-300">
-            <div className="bg-slate-950/92 backdrop-blur-xl flex items-stretch text-white">
-              {/* Ảnh bên trái sát vách */}
-              <div className="relative shrink-0 flex">
-                <TikTokAvatar
-                  url={currentFollower.profilePictureUrl}
-                  name={currentFollower.nickname}
-                  uniqueId={currentFollower.uniqueId}
-                  sizeClass="w-14 h-full min-h-[56px]"
-                />
-                <span className="absolute bottom-1 right-1 w-4 h-4 bg-gradient-to-tr from-pink-600 to-rose-500 border border-slate-950 flex items-center justify-center shadow">
-                  <UserPlus className="w-2.5 h-2.5 text-white" />
-                </span>
-              </div>
+          <div className="p-4 flex flex-col items-center text-center animate-in slide-in-from-top-4 fade-in duration-300">
+            <div className="relative mb-2 shrink-0">
+              <TikTokAvatar
+                url={currentFollower.profilePictureUrl}
+                name={currentFollower.nickname}
+                uniqueId={currentFollower.uniqueId}
+                sizeClass="w-20 h-20 rounded-none border-0 bg-transparent object-cover"
+              />
+              {/* <span className="absolute bottom-0 right-0 p-1 bg-pink-600 flex items-center justify-center">
+                <UserPlus className="w-6 h-6 text-white" />
+              </span> */}
+            </div>
 
-              {/* Tên & Nội dung bên phải có Padding */}
-              <div className="min-w-0 flex-1 p-3 flex flex-col justify-center">
-                <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3 text-amber-300 animate-spin" />
-                  <span>NGƯỜI THEO DÕI MỚI</span>
-                </div>
-                <p className="font-black text-sm bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate">
-                  {currentFollower.nickname || "Người xem"}
-                </p>
-                <p className="text-[11px] text-zinc-300 font-medium flex items-center gap-1 truncate">
-                  <span>Cảm ơn bạn đã Follow kênh</span>
-                  <Heart className="w-3 h-3 text-rose-400 fill-rose-400 inline" />
-                </p>
-              </div>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <p className="text-[25px] text-zinc-300 font-medium flex items-center gap-1 justify-center">
+                <span>
+                  Cảm ơn{" "}
+                  <span className="font-black text-[30px] bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate max-w-full">
+                    {currentFollower.nickname || "Người xem"}
+                  </span>{" "}
+                  đã Follow kênh
+                </span>
+              </p>
             </div>
           </div>
         )}
@@ -341,67 +409,79 @@ export const StandaloneObsView: React.FC = () => {
       <div className="flex-1" />
 
       {/* BOTTOM-LEFT: Comments & Gifts Container */}
-      <div className="max-w-md w-full space-y-3 pointer-events-auto">
+      <div className="max-w-md w-full space-y-3 pointer-events-auto mb-40 ml-10">
         {/* Gift Popup Celebration */}
-        {currentGift && (
-          <div className="p-[2px] animated-fb-border shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="bg-slate-950/92 backdrop-blur-xl flex items-stretch text-white">
-              <div className="p-2 flex items-center justify-center shrink-0 bg-slate-900/50">
+        {/* {currentGift && (
+          <div
+            key={currentGift.id || currentGift.msgId}
+            className="p-[1px] animated-fb-border shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-4 fade-in duration-300 relative overflow-hidden"
+          >
+            <div className="bg-slate-950/92 backdrop-blur-xl flex items-stretch text-white min-h-[72px]">
+              <div className="relative shrink-0 flex items-stretch self-stretch bg-slate-900/40 justify-center items-center">
                 {currentGift.giftPictureUrl ? (
                   <img
                     src={currentGift.giftPictureUrl}
                     alt={currentGift.giftName}
-                    className="w-12 h-12 object-contain animate-bounce"
+                    className="h-[80px] aspect-square rounded-none border-0 bg-transparent object-contain p-2"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <span className="text-3xl animate-bounce">🎁</span>
+                  <div className="h-[80px] aspect-square flex items-center justify-center text-3xl">
+                    🎁
+                  </div>
                 )}
               </div>
-              <div className="min-w-0 flex-1 p-3 flex flex-col justify-center">
-                <p className="font-black text-sm bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate">
-                  {currentGift.nickname || "Người xem"}
-                </p>
-                <p className="text-xs font-bold text-amber-200 flex items-center gap-1 mt-0.5">
-                  <Sparkles className="w-3 h-3 text-amber-300" />
-                  tặng {currentGift.giftName} x{currentGift.repeatCount || 1} (
-                  {(currentGift.diamondCount || 1) *
-                    (currentGift.repeatCount || 1)}{" "}
-                  Kim cương)
+
+              <div className="min-w-0 flex-1 px-3 py-1 flex flex-col justify-center">
+                <div className="flex items-center justify-between gap-2 shrink-0">
+                  <span className="font-black text-[22px] bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate leading-tight">
+                    {currentGift.nickname || "Người xem"}
+                  </span>
+                </div>
+
+                <p className="text-[18px] font-bold text-amber-200 flex items-center gap-1.5 leading-snug break-words tracking-wide my-auto">
+                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span className="truncate">
+                    tặng{" "}
+                    <span className="text-white">{currentGift.giftName}</span> x
+                    {currentGift.repeatCount || 1}
+                  </span>
+                  <span className="text-xs text-amber-300/80 font-semibold shrink-0">
+                    (
+                    {(currentGift.diamondCount || 1) *
+                      (currentGift.repeatCount || 1)}{" "}
+                    💎)
+                  </span>
                 </p>
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Single Comment Card */}
         {currentComment && (
           <div
             key={currentComment.id}
-            className="p-[2px] animated-fb-border shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-4 fade-in duration-300 relative overflow-hidden"
+            className="p-[1px] animated-fb-border shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-4 fade-in duration-300 relative overflow-hidden"
           >
-            {/* Khung chứa dạng flex items-stretch để ảnh vừa vặn chiều cao */}
-            <div className=" backdrop-blur-xl flex items-stretch text-white">
-              {/* Bên trái: Ảnh sát viền khung, không có padding */}
-              <div className="relative shrink-0 flex">
+            <div className="bg-slate-950/92 backdrop-blur-xl flex items-stretch text-white min-h-[72px]">
+              <div className="relative shrink-0 flex items-stretch self-stretch">
                 <TikTokAvatar
                   url={currentComment.profilePictureUrl}
                   name={currentComment.nickname}
                   uniqueId={currentComment.uniqueId}
-                  sizeClass="w-16 h-full min-h-[64px]"
+                  sizeClass="h-[80px] aspect-square rounded-none border-0 bg-transparent object-cover"
                 />
-                <span className="absolute bottom-1 right-1 w-3 h-3 bg-emerald-500 border border-slate-950" />
               </div>
 
-              {/* Bên phải: Tên user và nội dung comment có Padding (p-3) */}
-              <div className="min-w-0 flex-1 p-3 flex flex-col justify-center">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-black text-sm bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate leading-tight">
+              <div className="min-w-0 flex-1 px-3 py-1 flex flex-col justify-center">
+                <div className="flex items-center justify-between gap-2 shrink-0">
+                  <span className="font-black text-[30px] bg-gradient-to-t from-[#bd9867] to-[#fce3bc] bg-clip-text text-transparent truncate leading-tight">
                     {currentComment.nickname || "Người xem"}
                   </span>
                 </div>
 
-                <p className="text-sm font-bold text-white mt-1 leading-snug break-words tracking-wide">
+                <p className="text-[24px] font-bold text-white leading-snug break-words tracking-wide line-clamp-1 my-auto">
                   {currentComment.comment}
                 </p>
               </div>
